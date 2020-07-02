@@ -1,0 +1,43 @@
+#!/bin/bash
+#SBATCH -J pmd-check
+#SBATCH --array 0-1
+#
+#SBATCH -o /nfs/user/my485kaxa/pmd-check/pmd-check-%A-%a.out
+#SBATCH -e /nfs/user/my485kaxa/pmd-check/pmd-check-%A-%a.err
+#
+#SBATCH --constraint=podman
+#SBATCH --ntasks 1
+#SBATCH --ntasks-per-node 1
+#SBATCH --cpus-per-task 1
+#SBATCH --mem-per-cpu 16384
+#SBATCH --time 0-00:02:00
+#SBATCH --signal TERM@30
+
+JAVA_VERSIONS=(6 8)
+
+IMAGE_NAME=galaxy158.sc.uni-leipzig.de/pmd-check/pmd-check:1.0-jdk${JAVA_VERSIONS[$SLURM_ARRAY_TASK_ID]}
+CONTAINER_NAME="$SLURM_JOB_NAME-$SLURM_ARRAY_JOB_ID-$SLURM_ARRAY_TASK_ID"
+
+function cleanup()
+{
+    echo "$(date): Cleaning Up"
+
+    podman kill $CONTAINER_NAME
+    podman rm -f $CONTAINER_NAME
+    podman rmi $IMAGE_NAME
+}
+
+trap cleanup SIGTERM
+
+echo "$(date): Pulling Image"
+
+podman pull --tls-verify=false $IMAGE_NAME
+
+echo "$(date): Starting Container"
+
+srun podman run --rm --name $CONTAINER_NAME $IMAGE_NAME /bin/bash -c "./run.sh"
+
+echo "$(date): Cleaning Up"
+
+podman rm -f $CONTAINER_NAME
+podman rmi -f $IMAGE_NAME

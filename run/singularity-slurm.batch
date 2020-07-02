@@ -1,0 +1,26 @@
+#!/bin/bash
+#SBATCH -J pmd-check
+#SBATCH --array 0-1
+#
+#SBATCH -o /nfs/user/my485kaxa/pmd-check/pmd-check-%A-%a.out
+#SBATCH -e /nfs/user/my485kaxa/pmd-check/pmd-check-%A-%a.err
+#
+#SBATCH --constraint=singularity
+#SBATCH --ntasks 2
+#SBATCH --ntasks-per-node 2
+#SBATCH --cpus-per-task 1
+#SBATCH --mem-per-cpu 16384
+#SBATCH --time 0-00:10:00
+
+JAVA_VERSIONS=(6 6)
+
+IMAGE_REGISTRY=galaxy158.sc.uni-leipzig.de
+IMAGE_NAMESPACE=pmd-check
+IMAGE_NAME=pmd-check
+IMAGE_TAG=1.0-jdk${JAVA_VERSIONS[$SLURM_ARRAY_TASK_ID]}
+
+IMAGE=$IMAGE_REGISTRY/$IMAGE_NAMESPACE/$IMAGE_NAME:$IMAGE_TAG
+
+singularity pull --force --nohttps $IMAGE_NAME-$IMAGE_TAG.sif docker://$IMAGE
+
+singularity run $IMAGE_NAME-$IMAGE_TAG.sif /bin/bash -c "cd /home/validation_jmh; ./run.sh"
